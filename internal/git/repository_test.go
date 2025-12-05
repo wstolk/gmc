@@ -5,6 +5,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
+
+	"github.com/go-git/go-git/v5/plumbing"
 )
 
 // findGitRoot finds the git repository root by walking up the directory tree
@@ -75,7 +77,33 @@ func TestCheckoutMainBranch(t *testing.T) {
 		t.Fatalf("Failed to open repository: %v", err)
 	}
 
-	// Should not error since we're already on main or master
+	// Check if main or master branches exist
+	branches, err := repo.repo.Branches()
+	if err != nil {
+		t.Fatalf("Failed to get branches: %v", err)
+	}
+
+	hasMain := false
+	hasMaster := false
+	err = branches.ForEach(func(ref *plumbing.Reference) error {
+		branchName := ref.Name().Short()
+		if branchName == "main" {
+			hasMain = true
+		}
+		if branchName == "master" {
+			hasMaster = true
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("Failed to iterate branches: %v", err)
+	}
+
+	if !hasMain && !hasMaster {
+		t.Skip("Skipping test: repository has neither main nor master branch")
+	}
+
+	// Should not error since main or master branch exists
 	err = repo.CheckoutMainBranch()
 	if err != nil {
 		t.Errorf("Failed to checkout main branch: %v", err)
