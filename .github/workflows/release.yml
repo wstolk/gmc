@@ -80,7 +80,16 @@ jobs:
       - name: Generate checksums
         run: |
           cd dist
-          sha256sum *.tar.gz *.zip *.exe 2>/dev/null || sha256sum *.tar.gz 2>/dev/null || true > SHA256SUMS
+          # Generate SHA256 checksums for all files
+          if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum *.tar.gz *.zip *.exe > SHA256SUMS 2>/dev/null || true
+          elif command -v shasum >/dev/null 2>&1; then
+            shasum -a 256 *.tar.gz *.zip *.exe > SHA256SUMS 2>/dev/null || true
+          else
+            echo "Warning: No SHA256 tool found, skipping checksum generation"
+            touch SHA256SUMS
+          fi
+          echo "Checksums generated:"
           cat SHA256SUMS
 
       - name: Create release
