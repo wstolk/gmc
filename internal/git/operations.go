@@ -14,6 +14,19 @@ func (r *Repository) CheckoutMainBranch() error {
 		return fmt.Errorf("failed to get worktree: %w", err)
 	}
 
+	// Check current branch
+	head, err := r.repo.Head()
+	if err != nil {
+		return fmt.Errorf("failed to get HEAD: %w", err)
+	}
+
+	currentBranch := head.Name().Short()
+
+	// If already on main or master, we're done
+	if currentBranch == "main" || currentBranch == "master" {
+		return nil
+	}
+
 	// Try main branch first
 	mainRef := plumbing.ReferenceName("refs/heads/main")
 	err = w.Checkout(&git.CheckoutOptions{
@@ -36,7 +49,25 @@ func (r *Repository) CheckoutMainBranch() error {
 
 // FetchAndPrune fetches all remote branches and prunes stale remote references
 func (r *Repository) FetchAndPrune(remoteName string) error {
-	err := r.repo.Fetch(&git.FetchOptions{
+	// Check if remote exists
+	remotes, err := r.repo.Remotes()
+	if err != nil {
+		return fmt.Errorf("failed to get remotes: %w", err)
+	}
+
+	remoteExists := false
+	for _, remote := range remotes {
+		if remote.Config().Name == remoteName {
+			remoteExists = true
+			break
+		}
+	}
+
+	if !remoteExists {
+		return fmt.Errorf("remote %s not found", remoteName)
+	}
+
+	err = r.repo.Fetch(&git.FetchOptions{
 		RemoteName: remoteName,
 		Prune:      true,
 	})
@@ -85,7 +116,8 @@ func (r *Repository) GetStaleBranches(remoteName string) ([]string, error) {
 	}
 
 	if remoteRefs == nil {
-		return nil, fmt.Errorf("remote %s not found", remoteName)
+		// No remote found, return empty list (no stale branches to clean)
+		return []string{}, nil
 	}
 
 	// Check each local branch

@@ -1,0 +1,92 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Run tests
+        run: go test ./...
+
+      - name: Build binaries
+        run: |
+          # Create build script
+          cat > build.sh << 'EOF'
+          #!/bin/bash
+          set -e
+
+          VERSION=${GITHUB_REF#refs/tags/}
+          OUTPUT_DIR="dist"
+
+          mkdir -p "$OUTPUT_DIR"
+
+          # Build matrix
+          PLATFORMS=(
+            "linux/amd64"
+            "linux/arm64"
+            "linux/arm"
+            "darwin/amd64"
+            "darwin/arm64"
+            "windows/amd64"
+            "windows/arm64"
+          )
+
+          for PLATFORM in "${PLATFORMS[@]}"; do
+            GOOS=${PLATFORM%/*}
+            GOARCH=${PLATFORM#*/}
+
+            BINARY_NAME="gmc"
+            if [ "$GOOS" = "windows" ]; then
+              BINARY_NAME="gmc.exe"
+            fi
+
+            OUTPUT_NAME="gmc-${GOOS}-${GOARCH}"
+            if [ "$GOOS" = "windows" ]; then
+              OUTPUT_NAME="gmc-${GOOS}-${GOARCH}.exe"
+            fi
+
+            echo "Building for $GOOS/$GOARCH..."
+            GOOS=$GOOS GOARCH=$GOARCH go build -ldflags "-X main.version=$VERSION" -o "$OUTPUT_DIR/$OUTPUT_NAME" .
+
+            # Create archive
+            if [ "$GOOS" = "windows" ]; then
+              zip -j "$OUTPUT_DIR/gmc-${GOOS}-${GOARCH}.zip" "$OUTPUT_DIR/$OUTPUT_NAME"
+            else
+              tar -czf "$OUTPUT_DIR/gmc-${GOOS}-${GOARCH}.tar.gz" -C "$OUTPUT_DIR" "$OUTPUT_NAME"
+            fi
+          done
+          EOF
+
+          chmod +x build.sh
+          ./build.sh
+
+      - name: Generate checksums
+        run: |
+          cd dist
+          sha256sum *.tar.gz *.zip *.exe 2>/dev/null || sha256sum *.tar.gz 2>/dev/null || true > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

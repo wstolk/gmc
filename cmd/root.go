@@ -26,12 +26,14 @@ var (
 	dryRun  bool
 	verbose bool
 	remote  string
+	force   bool
 )
 
 func init() {
 	rootCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Show what would be done without making changes")
 	rootCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output")
 	rootCmd.Flags().StringVar(&remote, "remote", "origin", "Remote name to use (default: origin)")
+	rootCmd.Flags().BoolVar(&force, "force", false, "Force deletion of branches with uncommitted changes")
 }
 
 func runMaintenance(cmd *cobra.Command, args []string) error {
@@ -58,22 +60,34 @@ func runMaintenance(cmd *cobra.Command, args []string) error {
 
 	// Step 1: Checkout main branch
 	ui.PrintInfo("Checking out main branch...")
+	if verbose {
+		fmt.Println("  Looking for main or master branch...")
+	}
 	if err := repo.CheckoutMainBranch(); err != nil {
 		ui.PrintError("Failed to checkout main branch: %v", err)
 		return err
 	}
 	ui.PrintSuccess("Checked out main branch")
 
-	// Step 2: Fetch and prune
+	// Step 2: Fetch and prune (skip if no remote)
 	ui.PrintInfo("Fetching from remote '%s' with pruning...", remote)
-	if err := repo.FetchAndPrune(remote); err != nil {
-		ui.PrintError("Failed to fetch and prune: %v", err)
-		return err
+	if verbose {
+		fmt.Println("  This will update local remote-tracking branches...")
 	}
-	ui.PrintSuccess("Fetched and pruned remote branches")
+	if err := repo.FetchAndPrune(remote); err != nil {
+		ui.PrintWarning("Skipping fetch/prune: %v", err)
+		if verbose {
+			fmt.Println("  No remote repository found, proceeding with local cleanup only...")
+		}
+	} else {
+		ui.PrintSuccess("Fetched and pruned remote branches")
+	}
 
 	// Step 3: Identify stale branches
 	ui.PrintInfo("Identifying stale local branches...")
+	if verbose {
+		fmt.Println("  Comparing local branches with remote branches...")
+	}
 	staleBranches, err := repo.GetStaleBranches(remote)
 	if err != nil {
 		ui.PrintError("Failed to identify stale branches: %v", err)
@@ -93,7 +107,15 @@ func runMaintenance(cmd *cobra.Command, args []string) error {
 
 	// Delete branches (unless dry run)
 	if !dryRun {
+		if !force && len(staleBranches) > 0 {
+			ui.PrintWarning("Use --force to actually delete branches, or --dry-run to preview")
+			return fmt.Errorf("refusing to delete branches without --force flag")
+		}
+
 		ui.PrintInfo("Deleting stale branches...")
+		if verbose {
+			fmt.Printf("  Deleting %d branch(es)...\n", len(staleBranches))
+		}
 		if err := repo.DeleteBranches(staleBranches); err != nil {
 			ui.PrintError("Failed to delete branches: %v", err)
 			return err
