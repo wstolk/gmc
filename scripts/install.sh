@@ -217,7 +217,7 @@ verify_checksums() {
 
     if command -v sha256sum >/dev/null 2>&1; then
         cd "$TEMP_DIR"
-        if ! sha256sum -c SHA256SUMS >/dev/null 2>&1; then
+        if ! sha256sum -c --ignore-missing SHA256SUMS >/dev/null 2>&1; then
             log_error "Checksum verification failed"
             exit 1
         fi
@@ -286,10 +286,10 @@ install_binary() {
 
     if [[ "$OS" == "windows" ]]; then
         archive_name="gmc-${OS}-${ARCH}.zip"
-        binary_path="$TEMP_DIR/gmc.exe"
+        binary_path="$TEMP_DIR/gmc-${OS}-${ARCH}.exe"
     else
         archive_name="gmc-${OS}-${ARCH}.tar.gz"
-        binary_path="$TEMP_DIR/gmc"
+        binary_path="$TEMP_DIR/gmc-${OS}-${ARCH}"
     fi
 
     # Download archive
@@ -299,6 +299,9 @@ install_binary() {
     # Download checksums
     download_file "$GITHUB_RELEASES/download/$VERSION/SHA256SUMS" "$TEMP_DIR/SHA256SUMS" 2>/dev/null || true
 
+    # Verify checksums
+    verify_checksums
+
     # Extract archive
     log_info "Extracting archive..."
     if [[ "$OS" == "windows" ]]; then
@@ -306,9 +309,6 @@ install_binary() {
     else
         tar -xzf "$TEMP_DIR/$archive_name" -C "$TEMP_DIR"
     fi
-
-    # Verify checksums
-    verify_checksums
 
     # Verify signatures
     verify_signatures
