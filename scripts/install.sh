@@ -319,10 +319,10 @@ install_binary() {
 
     # Install binary
     if [[ "$INSTALL_DIR" == "/usr/local/bin" ]] && ! [[ -w "/usr/local/bin" ]]; then
-        sudo cp "$binary_path" "$INSTALL_DIR/"
+        sudo cp "$binary_path" "$INSTALL_DIR/gmc"
         sudo chmod +x "$INSTALL_DIR/gmc"
     else
-        cp "$binary_path" "$INSTALL_DIR/"
+        cp "$binary_path" "$INSTALL_DIR/gmc"
         chmod +x "$INSTALL_DIR/gmc"
     fi
 
