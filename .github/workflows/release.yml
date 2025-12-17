@@ -71,6 +71,9 @@ jobs:
             else
               tar -czf "$OUTPUT_DIR/gmc-${GOOS}-${GOARCH}.tar.gz" -C "$OUTPUT_DIR" "$OUTPUT_NAME"
             fi
+
+            # Remove individual binary after archiving to keep only archives
+            rm "$OUTPUT_DIR/$OUTPUT_NAME"
           done
           EOF
 
@@ -80,16 +83,21 @@ jobs:
       - name: Generate checksums
         run: |
           cd dist
-          # Generate SHA256 checksums for all files
-          if command -v sha256sum >/dev/null 2>&1; then
-            sha256sum *.tar.gz *.zip *.exe > SHA256SUMS 2>/dev/null || true
-          elif command -v shasum >/dev/null 2>&1; then
-            shasum -a 256 *.tar.gz *.zip *.exe > SHA256SUMS 2>/dev/null || true
-          else
-            echo "Warning: No SHA256 tool found, skipping checksum generation"
-            touch SHA256SUMS
+          echo "Files to checksum:"
+          ls -lh
+          echo ""
+
+          # Generate SHA256 checksums for all archive files (not individual binaries)
+          # Ubuntu runners always have sha256sum available
+          sha256sum *.tar.gz *.zip > SHA256SUMS
+
+          # Verify checksums file is not empty
+          if [ ! -s SHA256SUMS ]; then
+            echo "ERROR: SHA256SUMS file is empty or was not created"
+            exit 1
           fi
-          echo "Checksums generated:"
+
+          echo "Checksums generated successfully:"
           cat SHA256SUMS
 
       - name: Create release
