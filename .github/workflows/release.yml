@@ -71,6 +71,9 @@ jobs:
             else
               tar -czf "$OUTPUT_DIR/gmc-${GOOS}-${GOARCH}.tar.gz" -C "$OUTPUT_DIR" "$OUTPUT_NAME"
             fi
+
+            # Remove individual binary after archiving to keep only archives
+            rm "$OUTPUT_DIR/$OUTPUT_NAME"
           done
           EOF
 
@@ -80,17 +83,20 @@ jobs:
       - name: Generate checksums
         run: |
           cd dist
-          # Generate SHA256 checksums for all files
+          # Generate SHA256 checksums for all archive files (not individual binaries)
           if command -v sha256sum >/dev/null 2>&1; then
-            sha256sum *.tar.gz *.zip *.exe > SHA256SUMS 2>/dev/null || true
+            sha256sum *.tar.gz *.zip > SHA256SUMS 2>/dev/null || true
           elif command -v shasum >/dev/null 2>&1; then
-            shasum -a 256 *.tar.gz *.zip *.exe > SHA256SUMS 2>/dev/null || true
+            shasum -a 256 *.tar.gz *.zip > SHA256SUMS 2>/dev/null || true
           else
             echo "Warning: No SHA256 tool found, skipping checksum generation"
             touch SHA256SUMS
           fi
           echo "Checksums generated:"
           cat SHA256SUMS
+          echo ""
+          echo "Files in dist directory:"
+          ls -lh
 
       - name: Create release
         uses: softprops/action-gh-release@v2
