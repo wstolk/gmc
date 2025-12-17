@@ -83,20 +83,22 @@ jobs:
       - name: Generate checksums
         run: |
           cd dist
-          # Generate SHA256 checksums for all archive files (not individual binaries)
-          if command -v sha256sum >/dev/null 2>&1; then
-            sha256sum *.tar.gz *.zip > SHA256SUMS 2>/dev/null || true
-          elif command -v shasum >/dev/null 2>&1; then
-            shasum -a 256 *.tar.gz *.zip > SHA256SUMS 2>/dev/null || true
-          else
-            echo "Warning: No SHA256 tool found, skipping checksum generation"
-            touch SHA256SUMS
-          fi
-          echo "Checksums generated:"
-          cat SHA256SUMS
-          echo ""
-          echo "Files in dist directory:"
+          echo "Files to checksum:"
           ls -lh
+          echo ""
+
+          # Generate SHA256 checksums for all archive files (not individual binaries)
+          # Ubuntu runners always have sha256sum available
+          sha256sum *.tar.gz *.zip > SHA256SUMS
+
+          # Verify checksums file is not empty
+          if [ ! -s SHA256SUMS ]; then
+            echo "ERROR: SHA256SUMS file is empty or was not created"
+            exit 1
+          fi
+
+          echo "Checksums generated successfully:"
+          cat SHA256SUMS
 
       - name: Create release
         uses: softprops/action-gh-release@v2
