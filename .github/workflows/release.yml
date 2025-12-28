@@ -25,85 +25,11 @@ jobs:
       - name: Run tests
         run: go test ./...
 
-      - name: Build binaries
-        run: |
-          # Create build script
-          cat > build.sh << 'EOF'
-          #!/bin/bash
-          set -e
-
-          VERSION=${GITHUB_REF#refs/tags/}
-          OUTPUT_DIR="dist"
-
-          mkdir -p "$OUTPUT_DIR"
-
-          # Build matrix
-          PLATFORMS=(
-            "linux/amd64"
-            "linux/arm64"
-            "linux/arm"
-            "darwin/amd64"
-            "darwin/arm64"
-            "windows/amd64"
-            "windows/arm64"
-          )
-
-          for PLATFORM in "${PLATFORMS[@]}"; do
-            GOOS=${PLATFORM%/*}
-            GOARCH=${PLATFORM#*/}
-
-            BINARY_NAME="gmc"
-            if [ "$GOOS" = "windows" ]; then
-              BINARY_NAME="gmc.exe"
-            fi
-
-            OUTPUT_NAME="gmc-${GOOS}-${GOARCH}"
-            if [ "$GOOS" = "windows" ]; then
-              OUTPUT_NAME="gmc-${GOOS}-${GOARCH}.exe"
-            fi
-
-            echo "Building for $GOOS/$GOARCH..."
-            GOOS=$GOOS GOARCH=$GOARCH go build -ldflags "-X main.version=$VERSION" -o "$OUTPUT_DIR/$OUTPUT_NAME" .
-
-            # Create archive
-            if [ "$GOOS" = "windows" ]; then
-              zip -j "$OUTPUT_DIR/gmc-${GOOS}-${GOARCH}.zip" "$OUTPUT_DIR/$OUTPUT_NAME"
-            else
-              tar -czf "$OUTPUT_DIR/gmc-${GOOS}-${GOARCH}.tar.gz" -C "$OUTPUT_DIR" "$OUTPUT_NAME"
-            fi
-
-            # Remove individual binary after archiving to keep only archives
-            rm "$OUTPUT_DIR/$OUTPUT_NAME"
-          done
-          EOF
-
-          chmod +x build.sh
-          ./build.sh
-
-      - name: Generate checksums
-        run: |
-          cd dist
-          echo "Files to checksum:"
-          ls -lh
-          echo ""
-
-          # Generate SHA256 checksums for all archive files (not individual binaries)
-          # Ubuntu runners always have sha256sum available
-          sha256sum *.tar.gz *.zip > SHA256SUMS
-
-          # Verify checksums file is not empty
-          if [ ! -s SHA256SUMS ]; then
-            echo "ERROR: SHA256SUMS file is empty or was not created"
-            exit 1
-          fi
-
-          echo "Checksums generated successfully:"
-          cat SHA256SUMS
-
-      - name: Create release
-        uses: softprops/action-gh-release@v2
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
         with:
-          files: dist/*
-          generate_release_notes: true
+          distribution: goreleaser
+          version: latest
+          args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

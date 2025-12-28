@@ -10,6 +10,12 @@
 - Format: `gofmt -w .`
 - Vet: `go vet ./...`
 
+## Release Commands (GoReleaser)
+- Check config: `goreleaser check`
+- Build snapshot: `goreleaser build --snapshot --clean`
+- Test release: `goreleaser release --snapshot --clean`
+- Install GoReleaser: `go install github.com/goreleaser/goreleaser/v2@latest`
+
 ## Code Style Guidelines
 - **Go Version**: 1.25.4 minimum
 - **Formatting**: Use `gofmt` for standard Go formatting

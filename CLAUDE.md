@@ -241,24 +241,37 @@ ui.PrintSuccess("Operation completed")
 - Git tags trigger releases: `git tag v1.2.3 && git push origin v1.2.3`
 
 ### Release Workflow (`.github/workflows/release.yml`)
+The project uses **GoReleaser** to automate the release process.
+
 1. **Triggered by**: Pushing a tag matching `v*.*.*`
 2. **Steps**:
    - Checkout code with full history
    - Set up Go 1.21
    - Run all tests (`go test ./...`)
-   - Build binaries for multiple platforms:
-     - Linux: amd64, arm64, arm
-     - macOS (Darwin): amd64, arm64
-     - Windows: amd64, arm64
-   - Generate SHA256 checksums for all artifacts
-   - Create GitHub release with auto-generated notes
-   - Upload all binaries and checksums
+   - Run GoReleaser to:
+     - Build binaries for multiple platforms:
+       - Linux: amd64, arm64, arm
+       - macOS (Darwin): amd64, arm64
+       - Windows: amd64, arm64
+     - Create archives (.tar.gz for Unix, .zip for Windows)
+     - Generate SHA256 checksums (SHA256SUMS file)
+     - Create GitHub release with formatted notes
+     - Upload all artifacts
+
+### GoReleaser Configuration (`.goreleaser.yml`)
+The `.goreleaser.yml` file configures:
+- **Build settings**: Cross-platform compilation with version injection
+- **Archive formats**: .tar.gz for Unix, .zip for Windows
+- **Checksum generation**: SHA256SUMS for verification
+- **Changelog**: Auto-generated, grouped by feature/fix/enhancement
+- **Release notes**: Custom header and footer with installation instructions
 
 ### Build Artifacts
-- **Linux/macOS**: `.tar.gz` archives
-- **Windows**: `.zip` archives
+- **Linux/macOS**: `.tar.gz` archives containing binary and documentation
+- **Windows**: `.zip` archives containing binary and documentation
 - **Naming**: `gmc-{os}-{arch}.{ext}` (e.g., `gmc-linux-amd64.tar.gz`)
 - **Checksums**: `SHA256SUMS` file for verification
+- **Includes**: LICENSE, README.md, CLAUDE.md, AGENTS.md
 
 ### Manual Release
 ```bash
@@ -266,7 +279,22 @@ ui.PrintSuccess("Operation completed")
 git tag -a v1.2.3 -m "Release v1.2.3"
 git push origin v1.2.3
 
-# GitHub Actions will automatically build and publish
+# GitHub Actions will automatically build and publish using GoReleaser
+```
+
+### Testing Release Locally
+```bash
+# Install GoReleaser
+go install github.com/goreleaser/goreleaser/v2@latest
+
+# Check configuration
+goreleaser check
+
+# Build snapshot (test without releasing)
+goreleaser build --snapshot --clean
+
+# Full release dry-run
+goreleaser release --snapshot --clean
 ```
 
 ## Common Development Tasks
@@ -359,7 +387,8 @@ git push origin v1.2.3
 |------|---------|
 | `go.mod` | Go module definition, dependency versions |
 | `go.sum` | Cryptographic checksums for dependencies |
-| `.github/workflows/release.yml` | CI/CD release pipeline |
+| `.goreleaser.yml` | GoReleaser configuration for automated releases |
+| `.github/workflows/release.yml` | CI/CD release pipeline using GoReleaser |
 
 ### Documentation Files
 
