@@ -1,0 +1,145 @@
+# GoReleaser configuration for GMC
+# See https://goreleaser.com for documentation
+
+version: 2
+
+# Project information
+project_name: gmc
+
+# Build configuration
+builds:
+  - id: gmc
+    binary: gmc
+    main: .
+
+    # Inject version information at build time
+    ldflags:
+      - -X main.version={{.Version}}
+
+    # Build for multiple platforms
+    goos:
+      - linux
+      - darwin
+      - windows
+
+    goarch:
+      - amd64
+      - arm64
+      - arm
+
+    # Exclude incompatible combinations
+    ignore:
+      - goos: darwin
+        goarch: arm
+      - goos: windows
+        goarch: arm
+
+    env:
+      - CGO_ENABLED=0
+
+    # Flags for the Go compiler
+    flags:
+      - -trimpath
+
+# Archive configuration
+archives:
+  - id: default
+    format_overrides:
+      - goos: windows
+        format: zip
+
+    # Archive name template
+    name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}"
+
+    # Files to include in the archive
+    files:
+      - LICENSE
+      - README.md
+      - CLAUDE.md
+      - AGENTS.md
+
+# Checksum configuration
+checksum:
+  name_template: "SHA256SUMS"
+  algorithm: sha256
+
+# Snapshot configuration (for non-tagged builds)
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+
+# Changelog configuration
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
+      - "^chore:"
+      - "^build(deps):"
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 0
+    - title: "Bug Fixes"
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: "Enhancements"
+      regexp: '^.*?(refactor|perf)(\([[:word:]]+\))??!?:.+$'
+      order: 2
+    - title: Others
+      order: 999
+
+# GitHub release configuration
+release:
+  github:
+    owner: wstolk
+    name: gmc
+
+  # Release notes
+  draft: false
+  prerelease: auto
+  mode: replace
+
+  # Add release header
+  header: |
+    ## GMC {{ .Version }}
+
+    A powerful CLI tool for comprehensive Git repository maintenance.
+
+  # Add release footer with installation instructions
+  footer: |
+    ## Installation
+
+    ### Linux/macOS
+
+    Download the appropriate archive for your system, extract it, and move the binary to your PATH:
+
+    ```bash
+    # Example for Linux AMD64
+    tar -xzf gmc-linux-amd64.tar.gz
+    sudo mv gmc /usr/local/bin/
+    ```
+
+    ### Windows
+
+    Download the Windows ZIP file, extract it, and add the directory to your PATH.
+
+    ### Verify Installation
+
+    ```bash
+    gmc --help
+    ```
+
+    ## Checksums
+
+    Verify your download using the SHA256SUMS file:
+
+    ```bash
+    sha256sum -c SHA256SUMS 2>&1 | grep OK
+    ```
+
+# Announce (disabled for now, can enable later for Homebrew, etc.)
+announce:
+  skip: true
